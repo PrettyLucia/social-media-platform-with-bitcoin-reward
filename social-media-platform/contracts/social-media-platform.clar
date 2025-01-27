@@ -221,3 +221,22 @@
   )
 )
 
+;; Governance Functions
+(define-public (update-platform-fee (new-fee uint))
+  (begin
+    (asserts! (is-eq tx-sender PLATFORM-OWNER) ERR-NOT-AUTHORIZED)
+    (var-set platform-fee new-fee)
+    (ok true)
+  )
+)
+
+;; Read-Only Functions
+(define-read-only (get-user-profile (user principal))
+  (map-get? user-profiles user)
+)
+
+(define-read-only (get-content (content-id uint))
+  (map-get? content-registry content-id)
+)
+
+
