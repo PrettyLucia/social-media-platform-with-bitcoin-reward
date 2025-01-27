@@ -28,3 +28,24 @@
     joined-at: uint
   }
 )
+
+;; Content Management
+(define-map content-registry
+  uint
+  {
+    content-id: uint,
+    creator: principal,
+    content-type: (string-ascii 20),
+    content-hash: (string-ascii 64),
+    description: (string-ascii 200),
+    timestamp: uint,
+    engagement: {
+      likes: uint,
+      comments: uint,
+      shares: uint,
+      views: uint
+    },
+    rewards-distributed: bool,
+    tags: (list 5 (string-ascii 20))
+  }
+)
