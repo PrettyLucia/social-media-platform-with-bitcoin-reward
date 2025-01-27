@@ -147,3 +147,77 @@
   )
 )
 
+;; Engagement Mechanism
+(define-public (engage-content
+  (content-id uint)
+  (engagement-type (string-ascii 20))
+)
+  (let 
+    (
+      (content (unwrap! (map-get? content-registry content-id) ERR-CONTENT-NOT-FOUND))
+      (current-engagement (get engagement content))
+    )
+    
+    ;; Record engagement
+    (map-set content-engagement 
+      {content-id: content-id, user: tx-sender}
+      {
+        engagement-type: engagement-type,
+        timestamp: stacks-block-height
+      }
+    )
+    
+    ;; Update content engagement metrics
+    (map-set content-registry 
+      content-id 
+      (merge content 
+        {
+          engagement: 
+            (if (is-eq engagement-type "like")
+              (merge current-engagement {likes: (+ (get likes current-engagement) u1)})
+            (if (is-eq engagement-type "comment")
+              (merge current-engagement {comments: (+ (get comments current-engagement) u1)})
+            (if (is-eq engagement-type "share")
+              (merge current-engagement {shares: (+ (get shares current-engagement) u1)})
+              current-engagement
+            ))
+          )
+        }
+      )
+    )
+    
+    (ok true)
+  )
+)
+
+;; Reward Distribution
+(define-public (distribute-rewards (content-id uint))
+  (let 
+    (
+      (content (unwrap! (map-get? content-registry content-id) ERR-CONTENT-NOT-FOUND))
+      (creator (get creator content))
+      (engagement (get engagement content))
+      (total-engagement (+ 
+        (get likes engagement) 
+        (get comments engagement) 
+        (get shares engagement)
+      ))
+      (reward (* total-engagement REWARD-MULTIPLIER))
+    )
+    
+    ;; Check if already rewarded
+    (asserts! (not (get rewards-distributed content)) ERR-ALREADY-REWARDED)
+    
+    ;; Update content reward status
+    (map-set content-registry 
+      content-id 
+      (merge content {rewards-distributed: true})
+    )
+    
+    ;; Implement Bitcoin reward transfer logic here
+    ;; This would typically involve calling an external contract or service
+    
+    (ok reward)
+  )
+)
+
