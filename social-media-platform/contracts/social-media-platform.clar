@@ -49,3 +49,18 @@
     tags: (list 5 (string-ascii 20))
   }
 )
+
+;; User Content Tracking
+(define-map user-content-index
+  principal
+  (list 100 uint)
+)
+
+;; Engagement Tracking
+(define-map content-engagement
+  {content-id: uint, user: principal}
+  {
+    engagement-type: (string-ascii 20),
+    timestamp: uint
+  }
+)
