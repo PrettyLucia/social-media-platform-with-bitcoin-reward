@@ -12,3 +12,19 @@
 (define-constant PLATFORM-OWNER tx-sender)
 (define-constant MIN-REPUTATION-FOR-VERIFIED u100)
 (define-constant REWARD-MULTIPLIER u10)
+
+;; User Reputation Tracking
+(define-map user-profiles
+  principal
+  {
+    username: (string-ascii 50),
+    bio: (string-ascii 200),
+    profile-image-hash: (string-ascii 64),
+    reputation-score: uint,
+    total-contributions: uint,
+    verified-status: bool,
+    followers: uint,
+    following: uint,
+    joined-at: uint
+  }
+)
