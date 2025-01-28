@@ -335,3 +335,37 @@
     (ok true)
   )
 )
+
+;; Direct Messaging
+(define-public (send-message 
+  (recipient principal) 
+  (message (string-ascii 200))
+)
+  (let 
+    (
+      (sender-profile (unwrap! (map-get? user-profiles tx-sender) ERR-PROFILE-NOT-FOUND))
+      (recipient-profile (unwrap! (map-get? user-profiles recipient) ERR-PROFILE-NOT-FOUND))
+      (current-messages (default-to (list) (map-get? direct-messages {sender: tx-sender, recipient: recipient})))
+    )
+    
+    ;; Add message to conversation
+    (map-set direct-messages 
+      {sender: tx-sender, recipient: recipient}
+      (unwrap! 
+        (as-max-len? 
+          (append current-messages 
+            {
+              message: message, 
+              timestamp: stacks-block-height, 
+              read-status: false
+            }
+          ) 
+          u50
+        ) 
+        ERR-NOT-AUTHORIZED
+      )
+    )
+    
+    (ok true)
+  )
+)
