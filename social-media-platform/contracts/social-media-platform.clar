@@ -12,6 +12,7 @@
 (define-constant PLATFORM-OWNER tx-sender)
 (define-constant MIN-REPUTATION-FOR-VERIFIED u100)
 (define-constant REWARD-MULTIPLIER u10)
+(define-constant MAX-REPORT-THRESHOLD u3)
 
 ;; User Reputation Tracking
 (define-map user-profiles
@@ -239,4 +240,35 @@
   (map-get? content-registry content-id)
 )
 
+;; New Error Constants
+(define-constant ERR-ALREADY-FOLLOWING (err u7))
+(define-constant ERR-NOT-FOLLOWING (err u8))
+(define-constant ERR-INVALID-REPORT (err u9))
+(define-constant ERR-TRANSFER-FAILED (err u10))
 
+
+;; New: Following Relationship Map
+(define-map user-followers 
+  {follower: principal, followed: principal} 
+  {timestamp: uint}
+)
+
+;; New: Content Reporting System
+(define-map content-reports 
+  {content-id: uint, reporter: principal} 
+  {
+    reason: (string-ascii 100),
+    timestamp: uint,
+    status: (string-ascii 20)
+  }
+)
+
+;; New: Direct Messaging Map
+(define-map direct-messages 
+  {sender: principal, recipient: principal} 
+  (list 50 {
+    message: (string-ascii 200),
+    timestamp: uint,
+    read-status: bool
+  })
+)
