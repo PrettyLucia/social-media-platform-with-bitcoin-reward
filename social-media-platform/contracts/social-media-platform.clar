@@ -12,6 +12,7 @@
 (define-constant PLATFORM-OWNER tx-sender)
 (define-constant MIN-REPUTATION-FOR-VERIFIED u100)
 (define-constant REWARD-MULTIPLIER u10)
+(define-constant MAX-REPORT-THRESHOLD u3)
 
 ;; User Reputation Tracking
 (define-map user-profiles
@@ -218,6 +219,154 @@
     ;; This would typically involve calling an external contract or service
     
     (ok reward)
+  )
+)
+
+;; Governance Functions
+(define-public (update-platform-fee (new-fee uint))
+  (begin
+    (asserts! (is-eq tx-sender PLATFORM-OWNER) ERR-NOT-AUTHORIZED)
+    (var-set platform-fee new-fee)
+    (ok true)
+  )
+)
+
+;; Read-Only Functions
+(define-read-only (get-user-profile (user principal))
+  (map-get? user-profiles user)
+)
+
+(define-read-only (get-content (content-id uint))
+  (map-get? content-registry content-id)
+)
+
+;; New Error Constants
+(define-constant ERR-ALREADY-FOLLOWING (err u7))
+(define-constant ERR-NOT-FOLLOWING (err u8))
+(define-constant ERR-INVALID-REPORT (err u9))
+(define-constant ERR-TRANSFER-FAILED (err u10))
+
+
+;; Following Relationship Map
+(define-map user-followers 
+  {follower: principal, followed: principal} 
+  {timestamp: uint}
+)
+
+;; Content Reporting System
+(define-map content-reports 
+  {content-id: uint, reporter: principal} 
+  {
+    reason: (string-ascii 100),
+    timestamp: uint,
+    status: (string-ascii 20)
+  }
+)
+
+;; Direct Messaging Map
+(define-map direct-messages 
+  {sender: principal, recipient: principal} 
+  (list 50 {
+    message: (string-ascii 200),
+    timestamp: uint,
+    read-status: bool
+  })
+)
+
+;; New: Follow/Unfollow Mechanism
+(define-public (follow-user (target-user principal))
+  (let 
+    (
+      (sender-profile (unwrap! (map-get? user-profiles tx-sender) ERR-PROFILE-NOT-FOUND))
+      (target-profile (unwrap! (map-get? user-profiles target-user) ERR-PROFILE-NOT-FOUND))
+    )
+    ;; Check if already following
+    (asserts! 
+      (is-none (map-get? user-followers {follower: tx-sender, followed: target-user})) 
+      ERR-ALREADY-FOLLOWING
+    )
+    
+    ;; Add following relationship
+    (map-set user-followers 
+      {follower: tx-sender, followed: target-user}
+      {timestamp: stacks-block-height}
+    )
+    
+    ;; Update follower/following counts
+    (map-set user-profiles 
+      tx-sender 
+      (merge sender-profile {following: (+ (get following sender-profile) u1)})
+    )
+    (map-set user-profiles 
+      target-user 
+      (merge target-profile {followers: (+ (get followers target-profile) u1)})
+    )
+    
+    (ok true)
+  )
+)
+
+;; Unfollow Mechanism
+(define-public (unfollow-user (target-user principal))
+  (let 
+    (
+      (sender-profile (unwrap! (map-get? user-profiles tx-sender) ERR-PROFILE-NOT-FOUND))
+      (target-profile (unwrap! (map-get? user-profiles target-user) ERR-PROFILE-NOT-FOUND))
+    )
+    ;; Check if following
+    (asserts! 
+      (is-some (map-get? user-followers {follower: tx-sender, followed: target-user})) 
+      ERR-NOT-FOLLOWING
+    )
+    
+    ;; Remove following relationship
+    (map-delete user-followers {follower: tx-sender, followed: target-user})
+    
+    ;; Update follower/following counts
+    (map-set user-profiles 
+      tx-sender 
+      (merge sender-profile {following: (- (get following sender-profile) u1)})
+    )
+    (map-set user-profiles 
+      target-user 
+      (merge target-profile {followers: (- (get followers target-profile) u1)})
+    )
+    
+    (ok true)
+  )
+)
+
+;; Direct Messaging
+(define-public (send-message 
+  (recipient principal) 
+  (message (string-ascii 200))
+)
+  (let 
+    (
+      (sender-profile (unwrap! (map-get? user-profiles tx-sender) ERR-PROFILE-NOT-FOUND))
+      (recipient-profile (unwrap! (map-get? user-profiles recipient) ERR-PROFILE-NOT-FOUND))
+      (current-messages (default-to (list) (map-get? direct-messages {sender: tx-sender, recipient: recipient})))
+    )
+    
+    ;; Add message to conversation
+    (map-set direct-messages 
+      {sender: tx-sender, recipient: recipient}
+      (unwrap! 
+        (as-max-len? 
+          (append current-messages 
+            {
+              message: message, 
+              timestamp: stacks-block-height, 
+              read-status: false
+            }
+          ) 
+          u50
+        ) 
+        ERR-NOT-AUTHORIZED
+      )
+    )
+    
+    (ok true)
   )
 )
 
